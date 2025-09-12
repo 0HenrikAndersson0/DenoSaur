@@ -18,6 +18,4 @@ const init = async () => {
   console.log("API client generated successfully!");
 };
 
-
-
 init();

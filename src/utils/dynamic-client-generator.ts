@@ -86,8 +86,10 @@ export function generateClientFromOpenAPI(apiData: OpenAPIData): string {
 // Import generated types
 ${usedTypes.map(type => `import { ${type} } from "./types.ts";`).join('\n')}
 
+type Servers = ${apiData.servers.map((s, i) => {return (i > 0 ? '|' : '') + "'" + s.url + "'"})};
+
 interface ClientConfig {
-  baseUrl: string;
+  baseUrl: Servers | string & {};
   headers?: Record<string, string>;
 }
 

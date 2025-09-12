@@ -29,6 +29,36 @@ interface PathInfo {
   pathParams: string[];
 }
 
+function extractUsedTypes(pathInfos: PathInfo[], apiData: OpenAPIData): string[] {
+  const usedTypes = new Set<string>();
+  
+  // Extract types from all operations
+  for (const pathInfo of pathInfos) {
+    // Get request body type
+    if (pathInfo.operation.requestBody) {
+      const requestType = getRequestType(pathInfo.operation);
+      if (requestType && requestType !== 'any') {
+        usedTypes.add(requestType);
+      }
+    }
+    
+    // Get response type
+    const responseType = getResponseType(pathInfo.operation);
+    if (responseType && responseType !== 'any' && !responseType.includes('[]')) {
+      usedTypes.add(responseType);
+    }
+  }
+  
+  // Also include all schema types from the API
+  if (apiData.components?.schemas) {
+    for (const schemaName of Object.keys(apiData.components.schemas)) {
+      usedTypes.add(schemaName);
+    }
+  }
+  
+  return Array.from(usedTypes).sort();
+}
+
 export function generateClientFromOpenAPI(apiData: OpenAPIData): string {
   const paths = apiData.paths;
   
@@ -47,7 +77,14 @@ export function generateClientFromOpenAPI(apiData: OpenAPIData): string {
   // Group paths by resource and HTTP method
   const resourceGroups = groupPathsByResource(pathInfos);
   
-  let clientCode = `import { OpenAPIData } from "../types/interfaces.ts";
+  // Extract all unique types used in the API
+  const usedTypes = extractUsedTypes(pathInfos, apiData);
+  
+  let clientCode = `// Auto-generated API client from OpenAPI specification
+// Generated on: ${new Date().toISOString()}
+
+// Import generated types
+${usedTypes.map(type => `import { ${type} } from "./types.ts";`).join('\n')}
 
 interface ClientConfig {
   baseUrl: string;
@@ -107,25 +144,6 @@ export function createClient(config: ClientConfig): ApiClient {
   return new ApiClient(config);
 }
 
-// Type definitions
-interface Todo {
-  id: string;
-  title: string;
-  completed: boolean;
-}
-
-interface TodoInput {
-  title: string;
-  completed?: boolean;
-}
-
-// Example usage:
-// const client = createClient({ baseUrl: 'https://api.example.com' });
-// const todos = await client.get.todos.queryParams({});
-// const newTodo = await client.post.todos.data({ title: 'New Todo', completed: false });
-// const todo = await client.get.todo('123').get();
-// const updatedTodo = await client.put.todo('123').data({ title: 'Updated Todo' });
-// await client.delete.todo('123').delete();
 `;
 
   return clientCode;

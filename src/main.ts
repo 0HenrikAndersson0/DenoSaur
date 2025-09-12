@@ -4,7 +4,7 @@ import { generateClientFromOpenAPI } from "./utils/dynamic-client-generator.ts";
 import { OpenAPIData } from "./types/interfaces.ts";
 
 const init = async () => {
-  const data = await Deno.readTextFile("api-data.json");
+  const data = await Deno.readTextFile("1password.json");
   const apiData: OpenAPIData = JSON.parse(data);
   
   // Generate types

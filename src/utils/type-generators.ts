@@ -28,7 +28,7 @@ export const createTypesFromApiData = (apiData: OpenAPIData): string => {
     return generateTypeAlias(typeName, schema);
   };
   
-  const generateInterface = (typeName: string, schema: OpenAPISchema): string => {
+  export const generateInterface = (typeName: string, schema: OpenAPISchema): string => {
     let interfaceContent = `export interface ${typeName} {\n`;
     
     if (schema.properties) {

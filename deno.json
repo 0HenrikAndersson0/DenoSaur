@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "lib": ["deno.window"],
+    "strict": true
+  },
+  "fmt": {
+    "useTabs": false,
+    "lineWidth": 80,
+    "indentWidth": 2,
+    "semiColons": true,
+    "singleQuote": false,
+    "proseWrap": "preserve"
+  },
+  "lint": {
+    "include": ["src/"],
+    "exclude": ["dist/"]
+  },
+  "tasks": {
+    "start": "deno run --allow-net --allow-read src/main.ts",
+    "dev": "deno run --allow-net --allow-read --watch src/main.ts",
+    "generate": "deno run --allow-read --allow-write src/main.ts",
+    "generate-types": "deno run --allow-read --allow-write src/main.ts",
+    "test": "deno test --allow-net --allow-read",
+    "fmt": "deno fmt",
+    "lint": "deno lint",
+    "check": "deno check src/main.ts"
+  },
+  "imports": {
+    "@std/": "https://deno.land/std@0.208.0/",
+    "@app/": "./src/"
+  }
+}

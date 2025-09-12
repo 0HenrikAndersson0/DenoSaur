@@ -1,6 +1,7 @@
 # Deno
 .deno/
 dist/
+out/
 
 # Logs
 *.log

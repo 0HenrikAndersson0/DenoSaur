@@ -1,0 +1,15 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@std/fs@*": "1.0.19",
+    "jsr:@std/yaml@*": "1.0.9"
+  },
+  "jsr": {
+    "@std/fs@1.0.19": {
+      "integrity": "051968c2b1eae4d2ea9f79a08a3845740ef6af10356aff43d3e2ef11ed09fb06"
+    },
+    "@std/yaml@1.0.9": {
+      "integrity": "6bad3dc766dd85b4b37eabcba81b6aa4eac7a392792ae29abcfb0f90602d55bb"
+    }
+  }
+}

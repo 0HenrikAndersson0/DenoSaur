@@ -1,30 +1,25 @@
 
-import { exists } from "jsr:@std/fs/exists";
-import { parse } from "jsr:@std/yaml";
-import {createTypesFromApiData} from "./utils/type-generators.ts";
-import { generateClientFromOpenAPI } from "./utils/dynamic-client-generator.ts";
-import { OpenAPIData } from "./types/interfaces.ts";
+import { generateFromOpenAPI } from "./utils/generateFromOpenAPI.ts";
 
 const args = Deno.args;
 
 const init = async () => {
   const file = args[0] ?? "spec-files/demo-api.json";
-  if(!await exists(file, { isFile: true })) {
-    throw new Error("No schema");
-  } 
   
-  const data = await Deno.readTextFile(file);
-  const apiData: OpenAPIData = file.endsWith('.json') ? JSON.parse(data) : parse(data);
-  
-  // Generate types
-  const typesContent = createTypesFromApiData(apiData);
-  await Deno.writeTextFile("src/out/types.ts", typesContent);
-  console.log("TypeScript types generated successfully!");
-  
-  // Generate client
-  const clientContent = generateClientFromOpenAPI(apiData);
-  await Deno.writeTextFile("src/out/client.ts", clientContent);
-  console.log("API client generated successfully!");
+  try {
+    const result = await generateFromOpenAPI(file);
+    console.log("🎉 Generation completed successfully!");
+    
+    if (result.typesPath) {
+      console.log(`📄 Types: ${result.typesPath}`);
+    }
+    if (result.clientPath) {
+      console.log(`🔧 Client: ${result.clientPath}`);
+    }
+  } catch (error) {
+    console.error("❌ Error generating client:", (error as Error).message);
+    Deno.exit(1);
+  }
 };
 
 init();

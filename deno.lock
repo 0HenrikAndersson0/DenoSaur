@@ -2,7 +2,9 @@
   "version": "5",
   "specifiers": {
     "jsr:@std/fs@*": "1.0.19",
-    "jsr:@std/yaml@*": "1.0.9"
+    "jsr:@std/fs@1.0.19": "1.0.19",
+    "jsr:@std/yaml@*": "1.0.9",
+    "jsr:@std/yaml@1.0.9": "1.0.9"
   },
   "jsr": {
     "@std/fs@1.0.19": {

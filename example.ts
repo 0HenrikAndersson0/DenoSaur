@@ -6,62 +6,80 @@
  */
 
 import { 
-  generateClientFromOpenAPI, 
-  createTypesFromApiData,
-  type OpenAPIData 
+  generateFromOpenAPI,
+  generateTypesFromOpenAPI,
+  generateClientFromOpenAPIFile,
+  type GenerateOptions
 } from "jsr:@upnorth/denosaur";
 
-// Example OpenAPI data
-const apiData: OpenAPIData = {
-  servers: [{ url: "https://api.example.com" }],
-  paths: {
-    "/users": {
-      get: {
-        operationId: "getAllUsers",
-        summary: "Get all users",
-        responses: {
-          "200": {
-            description: "List of users",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "array",
-                  items: { $ref: "#/components/schemas/User" }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  },
-  components: {
-    schemas: {
-      User: {
-        type: "object",
-        properties: {
-          id: { type: "string" },
-          name: { type: "string" },
-          email: { type: "string" }
-        },
-        required: ["id", "name", "email"]
-      }
-    }
+// Method 1: Generate both types and client from a file (recommended)
+async function generateFromFile() {
+  try {
+    const result = await generateFromOpenAPI("api-spec.json", {
+      outputDir: "generated",
+      typesFilename: "api-types.ts",
+      clientFilename: "api-client.ts"
+    });
+    
+    console.log("✅ Generated files:");
+    console.log(`📄 Types: ${result.typesPath}`);
+    console.log(`🔧 Client: ${result.clientPath}`);
+  } catch (error) {
+    console.error("❌ Error:", (error as Error).message);
   }
-};
+}
 
-// Generate TypeScript types
-const typesContent = createTypesFromApiData(apiData);
-console.log("Generated types:");
-console.log(typesContent);
+// Method 2: Generate only types
+async function generateTypesOnly() {
+  try {
+    const typesContent = await generateTypesFromOpenAPI(
+      "api-spec.json", 
+      "generated/types.ts"
+    );
+    console.log("✅ Types generated successfully!");
+  } catch (error) {
+    console.error("❌ Error:", (error as Error).message);
+  }
+}
 
-// Generate API client
-const clientContent = generateClientFromOpenAPI(apiData);
-console.log("\nGenerated client:");
-console.log(clientContent);
+// Method 3: Generate only client
+async function generateClientOnly() {
+  try {
+    const clientContent = await generateClientFromOpenAPIFile(
+      "api-spec.json", 
+      "generated/client.ts"
+    );
+    console.log("✅ Client generated successfully!");
+  } catch (error) {
+    console.error("❌ Error:", (error as Error).message);
+  }
+}
 
-// Save to files
-await Deno.writeTextFile("generated-types.ts", typesContent);
-await Deno.writeTextFile("generated-client.ts", clientContent);
+// Method 4: Custom options
+async function generateWithCustomOptions() {
+  const options: GenerateOptions = {
+    outputDir: "src/api",
+    generateTypes: true,
+    generateClient: true,
+    typesFilename: "types.ts",
+    clientFilename: "client.ts"
+  };
+  
+  try {
+    const result = await generateFromOpenAPI("api-spec.json", options);
+    console.log("✅ Custom generation completed!");
+    return result;
+  } catch (error) {
+    console.error("❌ Error:", (error as Error).message);
+  }
+}
 
-console.log("\nFiles generated successfully!");
+// Run examples
+console.log("🚀 DenoSaur Examples");
+console.log("===================");
+
+// Uncomment to run specific examples:
+// await generateFromFile();
+// await generateTypesOnly();
+// await generateClientOnly();
+// await generateWithCustomOptions();

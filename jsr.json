@@ -39,6 +39,10 @@
     "./interfaces": {
       "types": "./src/types/interfaces.ts",
       "default": "./src/types/interfaces.ts"
+    },
+    "./generate": {
+      "types": "./src/utils/generateFromOpenAPI.ts",
+      "default": "./src/utils/generateFromOpenAPI.ts"
     }
   },
   "files": [

@@ -218,8 +218,9 @@ function generateCollectionMethods(
   // For GET requests, always generate queryParams method
   if (pathInfo.method === "get") {
     const responseType = getResponseType(pathInfo.operation);
+    const methodName = getMethodName(pathInfo.operation, "queryParams");
     code +=
-      `      queryParams: async (params: QueryParams = {}): Promise<ApiResponse<${responseType}>> => {\n`;
+      `      ${methodName}: async (params: QueryParams = {}): Promise<ApiResponse<${responseType}>> => {\n`;
     code +=
       `        const url = new URL(\`\${this.config.baseUrl}${pathInfo.path}\`);\n`;
     code += `        Object.entries(params).forEach(([key, value]) => {\n`;
@@ -246,8 +247,9 @@ function generateCollectionMethods(
   if (pathInfo.operation.requestBody) {
     const requestType = getRequestType(pathInfo.operation);
     const responseType = getResponseType(pathInfo.operation);
+    const methodName = getMethodName(pathInfo.operation, "data");
     code +=
-      `      data: async (body: ${requestType}): Promise<ApiResponse<${responseType}>> => {\n`;
+      `      ${methodName}: async (body: ${requestType}): Promise<ApiResponse<${responseType}>> => {\n`;
     code +=
       `        const response = await fetch(\`\${this.config.baseUrl}${pathInfo.path}\`, {\n`;
     code += `          method: '${pathInfo.method.toUpperCase()}',\n`;
@@ -285,7 +287,8 @@ function generateResourceMethods(
   // Generate get method for individual resources
   if (pathInfo.method === "get") {
     const responseType = getResponseType(pathInfo.operation);
-    code += `      get: async (): Promise<ApiResponse<${responseType}>> => {\n`;
+    const methodName = getMethodName(pathInfo.operation, "get");
+    code += `      ${methodName}: async (): Promise<ApiResponse<${responseType}>> => {\n`;
     code += `        const response = await fetch(\`\${this.config.baseUrl}${
       pathInfo.path.replace("{" + paramName + "}", "${" + paramName + "}")
     }\`, {\n`;
@@ -306,8 +309,9 @@ function generateResourceMethods(
   if (pathInfo.operation.requestBody) {
     const requestType = getRequestType(pathInfo.operation);
     const responseType = getResponseType(pathInfo.operation);
+    const methodName = getMethodName(pathInfo.operation, "data");
     code +=
-      `      data: async (body: ${requestType}): Promise<ApiResponse<${responseType}>> => {\n`;
+      `      ${methodName}: async (body: ${requestType}): Promise<ApiResponse<${responseType}>> => {\n`;
     code += `        const response = await fetch(\`\${this.config.baseUrl}${
       pathInfo.path.replace("{" + paramName + "}", "${" + paramName + "}")
     }\`, {\n`;
@@ -330,7 +334,8 @@ function generateResourceMethods(
 
   // Generate delete method
   if (pathInfo.method === "delete") {
-    code += `      delete: async (): Promise<ApiResponse<void>> => {\n`;
+    const methodName = getMethodName(pathInfo.operation, "delete");
+    code += `      ${methodName}: async (): Promise<ApiResponse<void>> => {\n`;
     code += `        const response = await fetch(\`\${this.config.baseUrl}${
       pathInfo.path.replace("{" + paramName + "}", "${" + paramName + "}")
     }\`, {\n`;
@@ -381,4 +386,20 @@ function getRequestType(operation: any): string {
   }
 
   return "any";
+}
+
+function getMethodName(operation: any, fallback: string): string {
+  if (operation.operationId) {
+    // Convert operationId to camelCase and remove any special characters
+    return operation.operationId
+      .replace(/[^a-zA-Z0-9]/g, ' ')
+      .split(' ')
+      .map((word: string, index: number) => 
+        index === 0 
+          ? word.toLowerCase() 
+          : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      )
+      .join('');
+  }
+  return fallback;
 }

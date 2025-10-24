@@ -13,6 +13,7 @@
   "paths": {
     "/products": {
       "get": {
+        "operationId": "getProductsYo",
         "summary": "List all products",
         "parameters": [
           {

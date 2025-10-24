@@ -1,0 +1,54 @@
+{
+  "name": "@upnorth/denosaur",
+  "version": "1.0.0",
+  "description": "A powerful Deno-based tool that generates type-safe API clients from OpenAPI specifications with intelligent method naming and comprehensive security documentation.",
+  "keywords": [
+    "openapi",
+    "swagger",
+    "api-client",
+    "typescript",
+    "deno",
+    "code-generation",
+    "rest-api",
+    "type-safe"
+  ],
+  "homepage": "https://github.com/0HenrikAndersson0/denosaur",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0HenrikAndersson0/denosaur.git"
+  },
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "0HenrikAndersson0"
+    }
+  ],
+  "exports": {
+    ".": {
+      "types": "./src/mod.ts",
+      "default": "./src/mod.ts"
+    },
+    "./generator": {
+      "types": "./src/utils/dynamic-client-generator.ts",
+      "default": "./src/utils/dynamic-client-generator.ts"
+    },
+    "./types": {
+      "types": "./src/utils/type-generators.ts", 
+      "default": "./src/utils/type-generators.ts"
+    },
+    "./interfaces": {
+      "types": "./src/types/interfaces.ts",
+      "default": "./src/types/interfaces.ts"
+    }
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE",
+    "deno.json"
+  ],
+  "publish": {
+    "main": "./src/mod.ts",
+    "types": "./src/mod.ts"
+  }
+}

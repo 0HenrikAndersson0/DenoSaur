@@ -8,7 +8,7 @@ import { OpenAPIData } from "./types/interfaces.ts";
 const args = Deno.args;
 
 const init = async () => {
-  const file = args[0] ?? "spec-files/test-api.json";
+  const file = args[0] ?? "spec-files/demo-api.json";
   if(!await exists(file, { isFile: true })) {
     throw new Error("No schema");
   } 

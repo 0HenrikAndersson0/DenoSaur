@@ -132,6 +132,8 @@ class ApiClient {
     clientCode += `  ${method} = {\n`;
 
     const methodPaths = resourceGroups[method] || {};
+    const directMethods: string[] = [];
+    const fallbackMethods: string[] = [];
 
     for (let [resourceName, paths] of Object.entries(methodPaths)) {
       const collectionPath = paths.find((p) => p.isCollection);
@@ -140,14 +142,30 @@ class ApiClient {
         .replaceAll(".", "_")
         .replaceAll("-", "_")
         .toLowerCase();
-      if (collectionPath) {
-        clientCode += generateCollectionMethods(resourceName, collectionPath);
+
+      // Check if paths have operationId
+      if (collectionPath && collectionPath.operation.operationId) {
+        directMethods.push(generateDirectMethod(collectionPath, apiData));
+      } else if (collectionPath) {
+        fallbackMethods.push(generateCollectionMethods(resourceName, collectionPath, apiData));
       }
 
-      if (resourcePath) {
-        clientCode += generateResourceMethods(resourceName, resourcePath);
+      if (resourcePath && resourcePath.operation.operationId) {
+        directMethods.push(generateDirectMethod(resourcePath, apiData));
+      } else if (resourcePath) {
+        fallbackMethods.push(generateResourceMethods(resourceName, resourcePath, apiData));
       }
     }
+
+    // Add direct methods first
+    directMethods.forEach(methodCode => {
+      clientCode += methodCode;
+    });
+
+    // Add fallback methods
+    fallbackMethods.forEach(methodCode => {
+      clientCode += methodCode;
+    });
 
     clientCode += `  };\n\n`;
   }
@@ -212,6 +230,7 @@ function groupPathsByResource(
 function generateCollectionMethods(
   resourceName: string,
   pathInfo: PathInfo,
+  apiData: OpenAPIData,
 ): string {
   let code = `    ${resourceName}: {\n`;
 
@@ -219,6 +238,17 @@ function generateCollectionMethods(
   if (pathInfo.method === "get") {
     const responseType = getResponseType(pathInfo.operation);
     const methodName = getMethodName(pathInfo.operation, "queryParams");
+    const securityRequirements = getSecurityRequirements(pathInfo.operation, apiData);
+    
+    code += `      /**\n`;
+    code += `       * ${pathInfo.operation.summary || methodName}\n`;
+    if (pathInfo.operation.description) {
+      code += `       * ${pathInfo.operation.description}\n`;
+    }
+    if (securityRequirements.length > 0) {
+      code += `       * @requires ${securityRequirements.join(', ')}\n`;
+    }
+    code += `       */\n`;
     code +=
       `      ${methodName}: async (params: QueryParams = {}): Promise<ApiResponse<${responseType}>> => {\n`;
     code +=
@@ -248,6 +278,17 @@ function generateCollectionMethods(
     const requestType = getRequestType(pathInfo.operation);
     const responseType = getResponseType(pathInfo.operation);
     const methodName = getMethodName(pathInfo.operation, "data");
+    const securityRequirements = getSecurityRequirements(pathInfo.operation, apiData);
+    
+    code += `      /**\n`;
+    code += `       * ${pathInfo.operation.summary || methodName}\n`;
+    if (pathInfo.operation.description) {
+      code += `       * ${pathInfo.operation.description}\n`;
+    }
+    if (securityRequirements.length > 0) {
+      code += `       * @requires ${securityRequirements.join(', ')}\n`;
+    }
+    code += `       */\n`;
     code +=
       `      ${methodName}: async (body: ${requestType}): Promise<ApiResponse<${responseType}>> => {\n`;
     code +=
@@ -276,6 +317,7 @@ function generateCollectionMethods(
 function generateResourceMethods(
   resourceName: string,
   pathInfo: PathInfo,
+  apiData: OpenAPIData,
 ): string {
   const singularName = resourceName.endsWith("s")
     ? resourceName.slice(0, -1)
@@ -288,6 +330,17 @@ function generateResourceMethods(
   if (pathInfo.method === "get") {
     const responseType = getResponseType(pathInfo.operation);
     const methodName = getMethodName(pathInfo.operation, "get");
+    const securityRequirements = getSecurityRequirements(pathInfo.operation, apiData);
+    
+    code += `      /**\n`;
+    code += `       * ${pathInfo.operation.summary || methodName}\n`;
+    if (pathInfo.operation.description) {
+      code += `       * ${pathInfo.operation.description}\n`;
+    }
+    if (securityRequirements.length > 0) {
+      code += `       * @requires ${securityRequirements.join(', ')}\n`;
+    }
+    code += `       */\n`;
     code += `      ${methodName}: async (): Promise<ApiResponse<${responseType}>> => {\n`;
     code += `        const response = await fetch(\`\${this.config.baseUrl}${
       pathInfo.path.replace("{" + paramName + "}", "${" + paramName + "}")
@@ -310,6 +363,17 @@ function generateResourceMethods(
     const requestType = getRequestType(pathInfo.operation);
     const responseType = getResponseType(pathInfo.operation);
     const methodName = getMethodName(pathInfo.operation, "data");
+    const securityRequirements = getSecurityRequirements(pathInfo.operation, apiData);
+    
+    code += `      /**\n`;
+    code += `       * ${pathInfo.operation.summary || methodName}\n`;
+    if (pathInfo.operation.description) {
+      code += `       * ${pathInfo.operation.description}\n`;
+    }
+    if (securityRequirements.length > 0) {
+      code += `       * @requires ${securityRequirements.join(', ')}\n`;
+    }
+    code += `       */\n`;
     code +=
       `      ${methodName}: async (body: ${requestType}): Promise<ApiResponse<${responseType}>> => {\n`;
     code += `        const response = await fetch(\`\${this.config.baseUrl}${
@@ -335,6 +399,17 @@ function generateResourceMethods(
   // Generate delete method
   if (pathInfo.method === "delete") {
     const methodName = getMethodName(pathInfo.operation, "delete");
+    const securityRequirements = getSecurityRequirements(pathInfo.operation, apiData);
+    
+    code += `      /**\n`;
+    code += `       * ${pathInfo.operation.summary || methodName}\n`;
+    if (pathInfo.operation.description) {
+      code += `       * ${pathInfo.operation.description}\n`;
+    }
+    if (securityRequirements.length > 0) {
+      code += `       * @requires ${securityRequirements.join(', ')}\n`;
+    }
+    code += `       */\n`;
     code += `      ${methodName}: async (): Promise<ApiResponse<void>> => {\n`;
     code += `        const response = await fetch(\`\${this.config.baseUrl}${
       pathInfo.path.replace("{" + paramName + "}", "${" + paramName + "}")
@@ -402,4 +477,147 @@ function getMethodName(operation: any, fallback: string): string {
       .join('');
   }
   return fallback;
+}
+
+function getSecurityRequirements(operation: any, apiData: OpenAPIData): string[] {
+  // Check if operation has specific security requirements
+  const operationSecurity = operation.security;
+  
+  // If operation has no specific security, use global security
+  const securityToCheck = operationSecurity || apiData.security || [];
+  
+  const authTypes: string[] = [];
+  
+  for (const securityRequirement of securityToCheck) {
+    for (const [schemeName, scopes] of Object.entries(securityRequirement)) {
+      const scheme = apiData.components?.securitySchemes?.[schemeName];
+      if (scheme) {
+        switch (scheme.type) {
+          case 'http':
+            if (scheme.scheme === 'basic') {
+              authTypes.push('Basic Authentication');
+            } else if (scheme.scheme === 'bearer') {
+              authTypes.push('Bearer Token');
+            } else {
+              authTypes.push(`HTTP ${scheme.scheme?.toUpperCase()}`);
+            }
+            break;
+          case 'apiKey':
+            authTypes.push(`API Key (${scheme.in}: ${scheme.name})`);
+            break;
+          case 'oauth2':
+            authTypes.push(`OAuth2${Array.isArray(scopes) && scopes.length > 0 ? ` (${scopes.join(', ')})` : ''}`);
+            break;
+          case 'openIdConnect':
+            authTypes.push('OpenID Connect');
+            break;
+          default:
+            authTypes.push(schemeName);
+        }
+      }
+    }
+  }
+  
+  return authTypes;
+}
+
+function generateDirectMethod(pathInfo: PathInfo, apiData: OpenAPIData): string {
+  const methodName = getMethodName(pathInfo.operation, "");
+  const responseType = getResponseType(pathInfo.operation);
+  const securityRequirements = getSecurityRequirements(pathInfo.operation, apiData);
+  
+  let code = `    /**\n`;
+  code += `     * ${pathInfo.operation.summary || methodName}\n`;
+  if (pathInfo.operation.description) {
+    code += `     * ${pathInfo.operation.description}\n`;
+  }
+  if (securityRequirements.length > 0) {
+    code += `     * @requires ${securityRequirements.join(', ')}\n`;
+  }
+  code += `     */\n`;
+  code += `    ${methodName}: `;
+  
+  // Determine parameters based on path and operation
+  const pathParams = pathInfo.pathParams;
+  const hasRequestBody = !!pathInfo.operation.requestBody;
+  
+  // Build parameter list
+  const params: string[] = [];
+  
+  // Add path parameters
+  pathParams.forEach(param => {
+    params.push(`${param}: string`);
+  });
+  
+  // Add query parameters for GET requests
+  if (pathInfo.method === "get") {
+    params.push("params: QueryParams = {}");
+  }
+  
+  // Add request body for POST/PUT/PATCH requests
+  if (hasRequestBody) {
+    const requestType = getRequestType(pathInfo.operation);
+    params.push(`body: ${requestType}`);
+  }
+  
+  const paramString = params.length > 0 ? `(${params.join(", ")})` : "()";
+  
+  code += `async ${paramString}: Promise<ApiResponse<${responseType}>> => {\n`;
+  
+  // Build URL with path parameters
+  let urlTemplate = `\`\${this.config.baseUrl}${pathInfo.path}\``;
+  pathParams.forEach(param => {
+    urlTemplate = urlTemplate.replace(`{${param}}`, `\${${param}}`);
+  });
+  
+  code += `      const url = new URL(${urlTemplate});\n`;
+  
+  // Add query parameters handling for GET requests
+  if (pathInfo.method === "get") {
+    code += `      Object.entries(params).forEach(([key, value]) => {\n`;
+    code += `        if (value !== undefined) {\n`;
+    code += `          url.searchParams.append(key, String(value));\n`;
+    code += `        }\n`;
+    code += `      });\n`;
+  }
+  
+  code += `      \n`;
+  
+  // Build fetch options
+  const fetchOptions: string[] = [];
+  fetchOptions.push(`method: '${pathInfo.method.toUpperCase()}'`);
+  
+  if (hasRequestBody) {
+    fetchOptions.push(`headers: {\n        'Content-Type': 'application/json',\n        ...this.config.headers,\n      }`);
+    fetchOptions.push(`body: JSON.stringify(body)`);
+  } else {
+    fetchOptions.push(`headers: this.config.headers`);
+  }
+  
+  const fetchOptionsString = fetchOptions.join(",\n      ");
+  
+  code += `      const response = await fetch(url.toString(), {\n`;
+  code += `        ${fetchOptionsString}\n`;
+  code += `      });\n`;
+  code += `      \n`;
+  
+  // Handle response
+  if (pathInfo.method === "delete" && !responseType.includes("void")) {
+    code += `      return {\n`;
+    code += `        data: undefined,\n`;
+    code += `        status: response.status,\n`;
+    code += `        statusText: response.statusText,\n`;
+    code += `      };\n`;
+  } else {
+    code += `      const data = await response.json();\n`;
+    code += `      return {\n`;
+    code += `        data,\n`;
+    code += `        status: response.status,\n`;
+    code += `        statusText: response.statusText,\n`;
+    code += `      };\n`;
+  }
+  
+  code += `    },\n`;
+  
+  return code;
 }

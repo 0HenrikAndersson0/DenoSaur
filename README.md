@@ -1,29 +1,56 @@
 # 🦖 DenoSaur - Dynamic OpenAPI Client Generator
 
-A powerful Deno-based tool that generates type-safe API clients from OpenAPI specifications.
+A powerful Deno-based tool that generates type-safe API clients from OpenAPI specifications with intelligent method naming and comprehensive security documentation.
 
 ## Features
 
-- **Dynamic Method Generation**: Automatically creates client methods based on API paths
-- **Type Safety**: Generates TypeScript types from OpenAPI schemas
-- **Flexible Syntax**: Supports intuitive method chaining like `client.get.products.queryParams({})`
-- **Auto Imports**: Automatically imports all required types
-- **Full HTTP Support**: Handles GET, POST, PUT, DELETE, PATCH methods
-- **Query Parameters**: Built-in query parameter handling
-- **Request Bodies**: Proper request body typing and serialization
+- **🎯 Smart Method Naming**: Uses `operationId` for direct method names when available, falls back to resource-based structure
+- **🔒 Security Documentation**: Automatically analyzes and documents authentication requirements for each endpoint
+- **📝 Comprehensive JSDoc**: Generates detailed documentation with summaries, descriptions, and security requirements
+- **🛡️ Type Safety**: Generates TypeScript types from OpenAPI schemas with full type checking
+- **🔄 Flexible Structure**: Supports both direct methods (`client.get.getpersonbyid(id)`) and resource-based methods (`client.get.person(id)`)
+- **📦 Auto Imports**: Automatically imports all required types
+- **🌐 Full HTTP Support**: Handles GET, POST, PUT, DELETE, PATCH methods
+- **🔍 Query Parameters**: Built-in query parameter handling with proper typing
+- **📤 Request Bodies**: Proper request body typing and JSON serialization
 
 ## Generated Client Syntax
 
-```typescript
-// Collection endpoints
-client.get.products.queryParams({ category: 'electronics' })
-client.get.users.queryParams({})
-client.post.products.data({ name: 'Widget', price: 29.99 })
+### With OperationId (Preferred)
+When your OpenAPI spec includes `operationId`, methods are generated as direct calls:
 
-// Individual resource endpoints  
-client.get.product('123').get()
-client.put.product('123').data({ name: 'Updated Widget' })
-client.delete.product('123').delete()
+```typescript
+// Direct methods based on operationId
+client.get.getallpersons({ limit: 10 })
+client.get.getpersonbyid('123')
+client.put.createorupdateperson('123', { name: 'John', age: 30 })
+client.delete.deleteperson('123')
+client.get.healthcheck()
+```
+
+### Without OperationId (Fallback)
+When no `operationId` is present, falls back to resource-based structure:
+
+```typescript
+// Resource-based methods (fallback)
+client.get.persons.queryParams({ category: 'electronics' })
+client.get.person('123').get()
+client.put.person('123').data({ name: 'Updated Widget' })
+client.delete.person('123').delete()
+```
+
+### Security Documentation
+Each method includes comprehensive JSDoc with security requirements:
+
+```typescript
+/**
+ * Get person by ID
+ * Retrieve a specific person by their ID
+ * @requires Basic Authentication
+ */
+getpersonbyid: async (id: string, params: QueryParams = {}): Promise<ApiResponse<Person>> => {
+  // ... implementation
+}
 ```
 
 ## Usage
@@ -39,13 +66,22 @@ client.delete.product('123').delete()
    
    const client = createClient({ 
      baseUrl: 'https://api.example.com',
-     headers: { 'Authorization': 'Bearer token' }
+     headers: { 
+       'Authorization': 'Basic ' + btoa('admin:secret'),
+       'Content-Type': 'application/json'
+     }
    });
    
-   // Get all products
-   const products = await client.get.products.queryParams({});
+   // Direct methods (with operationId)
+   const persons = await client.get.getallpersons({ limit: 10 });
+   const person = await client.get.getpersonbyid('123');
+   const updated = await client.put.createorupdateperson('123', {
+     name: 'John Doe',
+     age: 30
+   });
    
-   // Create a product
+   // Fallback methods (without operationId)
+   const products = await client.get.products.queryParams({ category: 'electronics' });
    const newProduct = await client.post.products.data({
      name: 'New Product',
      price: 29.99
@@ -77,15 +113,78 @@ src/
 
 ## How It Works
 
-1. **Path Analysis**: Analyzes OpenAPI paths to extract resource names and patterns
-2. **Type Extraction**: Identifies all types used in request/response schemas
-3. **Method Generation**: Creates appropriate client methods for each endpoint
-4. **Type Imports**: Automatically imports all required types at the top of the generated file
-5. **Dynamic Naming**: Method names are generated based on actual API structure
+1. **🔍 Path Analysis**: Analyzes OpenAPI paths to extract resource names and patterns
+2. **🔒 Security Analysis**: Examines security requirements (global and operation-specific)
+3. **📝 Type Extraction**: Identifies all types used in request/response schemas
+4. **🎯 Smart Method Generation**: Creates methods based on `operationId` or falls back to resource structure
+5. **📚 Documentation Generation**: Adds JSDoc comments with summaries, descriptions, and security requirements
+6. **📦 Type Imports**: Automatically imports all required types at the top of the generated file
+
+### Method Generation Logic
+
+**With OperationId** (Preferred):
+- `/api/persons` with `operationId: "getAllPersons"` → `client.get.getallpersons()`
+- `/api/person/{id}` with `operationId: "getPersonById"` → `client.get.getpersonbyid(id)`
+
+**Without OperationId** (Fallback):
+- `/api/products` → `client.get.products.queryParams()`
+- `/api/products/{id}` → `client.get.product(id).get()`
+
+### Supported Authentication Types
+
+- **Basic Authentication**: `@requires Basic Authentication`
+- **Bearer Token**: `@requires Bearer Token`
+- **API Key**: `@requires API Key (header: X-API-Key)`
+- **OAuth2**: `@requires OAuth2 (read, write)`
+- **OpenID Connect**: `@requires OpenID Connect`
 
 The generator handles:
-- Collection endpoints (`/products` → `client.get.products.queryParams()`)
-- Resource endpoints (`/products/{id}` → `client.get.product(id).get()`)
-- Different parameter names (`{userId}` vs `{id}`)
-- All HTTP methods with proper typing
-- Query parameters and request bodies
+- ✅ Collection and resource endpoints with intelligent naming
+- ✅ Path parameters with proper typing (`{userId}` vs `{id}`)
+- ✅ All HTTP methods (GET, POST, PUT, DELETE, PATCH)
+- ✅ Query parameters and request bodies with full type safety
+- ✅ Security documentation for all authentication schemes
+- ✅ Comprehensive JSDoc with operation summaries and descriptions
+
+## Best Practices
+
+### Using OperationId
+For the best developer experience, include `operationId` in your OpenAPI specification:
+
+```yaml
+paths:
+  /api/persons:
+    get:
+      operationId: "getAllPersons"  # ✅ Creates: client.get.getallpersons()
+      summary: "Get all persons"
+  /api/person/{id}:
+    get:
+      operationId: "getPersonById"  # ✅ Creates: client.get.getpersonbyid(id)
+      summary: "Get person by ID"
+```
+
+### Security Configuration
+Define security schemes in your OpenAPI spec for automatic documentation:
+
+```yaml
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: "Basic authentication with username and password"
+security:
+  - basicAuth: []
+```
+
+### Generated Documentation
+The client automatically includes comprehensive documentation:
+
+```typescript
+/**
+ * Get person by ID
+ * Retrieve a specific person by their ID
+ * @requires Basic Authentication
+ */
+getpersonbyid: async (id: string, params: QueryParams = {}): Promise<ApiResponse<Person>>
+```

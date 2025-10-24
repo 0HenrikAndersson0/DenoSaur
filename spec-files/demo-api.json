@@ -1,0 +1,262 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+      "title": "Person Management API",
+      "description": "A simple REST API for managing persons with basic authentication",
+      "version": "1.0.0",
+      "contact": {
+        "name": "API Support"
+      }
+    },
+    "servers": [
+      {
+        "url": "http://localhost:3000",
+        "description": "Development server"
+      }
+    ],
+    "security": [
+      {
+        "basicAuth": []
+      }
+    ],
+    "paths": {
+      "/api/health": {
+        "get": {
+          "summary": "Health check",
+          "description": "Check if the API is running",
+          "operationId": "healthCheck",
+          "responses": {
+            "200": {
+              "description": "API is healthy",
+              "content": {
+                "text/plain": {
+                  "schema": {
+                    "type": "string",
+                    "example": "OK"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized - Authentication required",
+              "content": {
+                "text/plain": {
+                  "schema": {
+                    "type": "string",
+                    "example": "Authorization required"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/persons": {
+        "get": {
+          "summary": "Get all persons",
+          "description": "Retrieve a list of all persons",
+          "operationId": "getAllPersons",
+          "responses": {
+            "200": {
+              "description": "List of persons retrieved successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Person"
+                    }
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized - Authentication required",
+              "content": {
+                "text/plain": {
+                  "schema": {
+                    "type": "string",
+                    "example": "Authorization required"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/person/{id}": {
+        "get": {
+          "summary": "Get person by ID",
+          "description": "Retrieve a specific person by their ID",
+          "operationId": "getPersonById",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "description": "The person's unique identifier",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Person retrieved successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Person"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized - Authentication required",
+              "content": {
+                "text/plain": {
+                  "schema": {
+                    "type": "string",
+                    "example": "Authorization required"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "put": {
+          "summary": "Create or update person",
+          "description": "Create a new person or update an existing one by ID",
+          "operationId": "createOrUpdatePerson",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "description": "The person's unique identifier",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonInput"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Person created or updated successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/Person"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized - Authentication required",
+              "content": {
+                "text/plain": {
+                  "schema": {
+                    "type": "string",
+                    "example": "Authorization required"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "delete": {
+          "summary": "Delete person",
+          "description": "Delete a person by their ID",
+          "operationId": "deletePerson",
+          "parameters": [
+            {
+              "name": "id",
+              "in": "path",
+              "required": true,
+              "description": "The person's unique identifier",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Person deleted successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "string",
+                    "example": "person-id-123"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized - Authentication required",
+              "content": {
+                "text/plain": {
+                  "schema": {
+                    "type": "string",
+                    "example": "Authorization required"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "components": {
+      "schemas": {
+        "Person": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The person's name",
+              "example": "John Doe"
+            },
+            "age": {
+              "type": "integer",
+              "description": "The person's age",
+              "example": 30
+            }
+          },
+          "required": ["name", "age"]
+        },
+        "PersonInput": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "The person's name",
+              "example": "John Doe"
+            },
+            "age": {
+              "type": "integer",
+              "description": "The person's age",
+              "example": 30
+            }
+          },
+          "required": ["name", "age"]
+        }
+      },
+      "securitySchemes": {
+        "basicAuth": {
+          "type": "http",
+          "scheme": "basic",
+          "description": "Basic authentication with username and password"
+        }
+      }
+    }
+  }
+  

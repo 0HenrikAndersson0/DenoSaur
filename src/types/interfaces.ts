@@ -14,7 +14,15 @@ export interface OpenAPIData {
     },
   ];
   paths: Record<string, object>;
+  security?: Array<Record<string, string[]>>;
   components: {
     schemas: Record<string, OpenAPISchema>;
+    securitySchemes?: Record<string, {
+      type: string;
+      scheme?: string;
+      name?: string;
+      in?: string;
+      description?: string;
+    }>;
   };
 }

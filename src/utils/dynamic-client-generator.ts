@@ -1,23 +1,4 @@
-import { OpenAPIData } from "../types/interfaces.ts";
-
-interface ClientConfig {
-  baseUrl: string;
-  headers?: Record<string, string>;
-}
-
-interface QueryParams {
-  [key: string]: string | number | boolean | undefined;
-}
-
-interface RequestBody {
-  [key: string]: any;
-}
-
-interface ApiResponse<T = any> {
-  data: T;
-  status: number;
-  statusText: string;
-}
+import type { OpenAPIData } from "../types/interfaces.ts";
 
 interface PathInfo {
   path: string;

@@ -4,6 +4,8 @@ src/out/
 # Spec files (examples, not part of the package)
 spec-files/
 
+todo
+
 # Deno
 .deno/
 

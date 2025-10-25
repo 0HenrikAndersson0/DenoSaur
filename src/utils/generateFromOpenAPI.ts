@@ -2,7 +2,7 @@ import { exists } from "jsr:@std/fs@1.0.19/exists";
 import { parse } from "jsr:@std/yaml@1.0.9";
 import { createTypesFromApiData } from "./type-generators.ts";
 import { generateClientFromOpenAPI } from "./dynamic-client-generator.ts";
-import { OpenAPIData } from "../types/interfaces.ts";
+import type { OpenAPIData } from "../types/interfaces.ts";
 
 export interface GenerateOptions {
   /** Output directory for generated files (default: "src/out") */

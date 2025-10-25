@@ -4,10 +4,8 @@ import { generateFromOpenAPI } from "./utils/generateFromOpenAPI.ts";
 const args = Deno.args;
 
 const init = async () => {
-  const file = args[0] ?? "spec-files/demo-api.json";
-  
   try {
-    const result = await generateFromOpenAPI(file);
+    const result = await generateFromOpenAPI(args[0]);
     console.log("🎉 Generation completed successfully!");
     
     if (result.typesPath) {

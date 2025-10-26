@@ -3,7 +3,7 @@ import { OpenAPISchema, OpenAPIData } from "../types/interfaces.ts";
 
 export const createTypesFromApiData = (apiData: OpenAPIData): string => {
     const schemas = apiData.components.schemas;
-    if(schemas == undefined) {
+    if(schemas == undefined || Object.keys(schemas).length === 0) {
       return "";
     }
     let typesContent = `// Auto-generated TypeScript types from OpenAPI schema

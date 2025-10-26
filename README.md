@@ -130,8 +130,33 @@ deno run --allow-read --allow-write src/main.ts spec-files/api-data.json
 - `deno task generate` - Generate types and client from OpenAPI spec
 - `deno task start` - Run the main application
 - `deno task dev` - Run in development mode with file watching
+- `deno task test` - Run all tests
 - `deno task fmt` - Format code
 - `deno task lint` - Lint code
+
+## Testing
+
+Comprehensive tests are available to ensure the generator works correctly:
+
+```bash
+# Run all tests
+deno task test
+
+# Run specific test file
+deno test src/tests/type-generators_test.ts
+deno test src/tests/dynamic-client-generator_test.ts
+```
+
+The test suite covers:
+- ✅ Type generation (basic types, objects, arrays, unions)
+- ✅ Property name escaping (special characters like `taxonomy/id`)
+- ✅ `anyOf`, `oneOf`, `allOf` schema handling
+- ✅ Client method generation with operationId
+- ✅ Curried function patterns for resource endpoints
+- ✅ Query parameter typing
+- ✅ Security documentation
+- ✅ Inline type generation
+- ✅ DELETE response handling
 
 ## Project Structure
 
@@ -140,9 +165,14 @@ src/
 ├── main.ts                    # Main entry point
 ├── utils/
 │   ├── type-generators.ts    # Type generation utilities
-│   └── dynamic-client-generator.ts  # Client generation
+│   ├── dynamic-client-generator.ts  # Client generation
+│   └── generateFromOpenAPI.ts # Unified generation utility
 ├── types/
 │   └── interfaces.ts         # TypeScript interfaces
+├── tests/
+│   ├── type-generators_test.ts      # Type generator tests
+│   ├── dynamic-client-generator_test.ts  # Client generator tests
+│   └── run_tests.ts          # Test runner script
 └── out/
     ├── types.ts              # Generated types
     └── client.ts             # Generated client

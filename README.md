@@ -1,4 +1,4 @@
-<p align="center">
+<p>
   <a href="https://github.com/0HenrikAndersson0/DenoSaur/actions/workflows/deno.yml">
     <img src="https://github.com/0HenrikAndersson0/DenoSaur/actions/workflows/deno.yml/badge.svg" alt="Tests" />
   </a>

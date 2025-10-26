@@ -13,7 +13,7 @@
   "paths": {
     "/products": {
       "get": {
-        "operationId": "getProductsYo",
+        "operationId": "getProducts",
         "summary": "List all products",
         "parameters": [
           {
@@ -101,7 +101,7 @@
       },
       "put": {
         "summary": "Update a product",
-        "operationId": "updateProductYo",
+        "operationId": "updateProduct",
         "parameters": [
           {
             "name": "id",

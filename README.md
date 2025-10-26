@@ -1,3 +1,6 @@
+[![Deno Tests](https://github.com/0HenrikAndersson0/DenoSaur/actions/workflows/deno.yml/badge.svg)](https://github.com/0HenrikAndersson0/DenoSaur/actions/workflows/deno.yml)
+
+
 # 🦖 DenoSaur - Dynamic OpenAPI Client Generator
 
 A powerful Deno-based tool that generates type-safe API clients from OpenAPI specifications with intelligent method naming and comprehensive security documentation.

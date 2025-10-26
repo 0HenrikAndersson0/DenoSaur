@@ -63,11 +63,31 @@ export const createTypesFromApiData = (apiData: OpenAPIData): string => {
     return `export type ${typeName} = ${type};`;
   };
   
-  export const convertSchemaToType = (schema: OpenAPISchema): string => {
+  export const convertSchemaToType = (schema: OpenAPISchema | any): string => {
+    if (!schema || typeof schema !== "object") {
+      return "any";
+    }
+
     if (schema.$ref) {
       // Extract type name from reference like "#/components/schemas/Todo"
       const refName = schema.$ref.split("/").pop() || "unknown";
       return refName;
+    }
+    
+    // Handle anyOf, oneOf, allOf
+    if (schema.anyOf && Array.isArray(schema.anyOf)) {
+      const types = schema.anyOf.map((s: any) => convertSchemaToType(s));
+      return types.join(" | ");
+    }
+    
+    if (schema.oneOf && Array.isArray(schema.oneOf)) {
+      const types = schema.oneOf.map((s: any) => convertSchemaToType(s));
+      return types.join(" | ");
+    }
+    
+    if (schema.allOf && Array.isArray(schema.allOf)) {
+      const types = schema.allOf.map((s: any) => convertSchemaToType(s));
+      return types.join(" & ");
     }
     
     if (schema.type === "string") {
@@ -90,13 +110,26 @@ export const createTypesFromApiData = (apiData: OpenAPIData): string => {
       return "any[]";
     }
     
-    if (schema.type === "object") {
-      return "Record<string, any>";
+      if (schema.type === "object") {
+    // If it has properties, generate an inline type
+    if (schema.properties) {
+      const properties: string[] = [];
+      for (const [propName, propSchema] of Object.entries(schema.properties)) {
+        const isRequired = schema.required?.includes(propName) ?? false;
+        const optional = isRequired ? "" : "?";
+        const propType = convertSchemaToType(propSchema as any);
+        // Escape property names that aren't valid identifiers
+        const escapedPropName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(propName) ? propName : `"${propName}"`;
+        properties.push(`${escapedPropName}${optional}: ${propType}`);
+      }
+      return `{ ${properties.join("; ")} }`;
     }
+    return "Record<string, any>";
+  }
     
     if (schema.enum) {
       const enumValues = schema.enum
-        .map(value => typeof value === "string" ? `"${value}"` : String(value))
+        .map((value: any) => typeof value === "string" ? `"${value}"` : String(value))
         .join(" | ");
       return enumValues;
     }

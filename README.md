@@ -9,7 +9,7 @@ A powerful Deno-based tool that generates type-safe API clients from OpenAPI spe
 - **📝 Comprehensive JSDoc**: Generates detailed documentation with summaries, descriptions, and security requirements
 - **🛡️ Type Safety**: Generates TypeScript types from OpenAPI schemas with full type checking
 - **🔄 Flexible Structure**: Smart method generation based on endpoint type - direct methods, curried functions, or nested structures
-- **🎣 Curried Functions**: Resource endpoints use curried functions for clean APIs like `client.put.todo(id)(body)`
+- **🎣 Curried Functions**: Resource endpoints use curried functions consistently - same pattern with or without operationId! `client.put.todo(id)(body)` or `client.put.updateproduct(id)(body)`
 - **📦 Auto Imports**: Automatically imports all required types
 - **🌐 Full HTTP Support**: Handles GET, POST, PUT, DELETE, PATCH methods
 - **🔍 Query Parameters**: Built-in query parameter handling with proper typing
@@ -18,14 +18,18 @@ A powerful Deno-based tool that generates type-safe API clients from OpenAPI spe
 ## Generated Client Syntax
 
 ### With OperationId (Preferred)
-When your OpenAPI spec includes `operationId`, methods are generated as direct calls:
+When your OpenAPI spec includes `operationId`, methods use the same clean API structure:
 
 ```typescript
-// Direct methods based on operationId
+// Collection endpoints
 client.get.getallpersons({ limit: 10 })
+
+// Resource endpoints with operationId - same curried pattern!
+client.put.updateproduct('123')({ name: 'Updated Product', price: 99.99 })
+client.delete.removeitem('123')()
 client.get.getpersonbyid('123')
-client.put.createorupdateperson('123', { name: 'John', age: 30 })
-client.delete.deleteperson('123')
+
+// Standalone endpoints
 client.get.healthcheck()
 ```
 
@@ -100,22 +104,22 @@ deno run --allow-read --allow-write src/main.ts spec-files/api-data.json
      }
    });
    
-   // Direct methods (with operationId)
+   // Collection endpoints (with operationId)
    const persons = await client.get.getallpersons({ limit: 10 });
-   const person = await client.get.getpersonbyid('123');
-   const updated = await client.put.createorupdateperson('123', {
-     name: 'John Doe',
-     age: 30
-   });
+   const persons2 = await client.get.todos(); // Without operationId
    
-   // Collection endpoints (without operationId)
-   const todos = await client.get.todos();
-   const newTodo = await client.post.todos({ title: 'New Todo', completed: false });
+   // Resource endpoints - SAME CURRIED PATTERN for both with/without operationId! ✨
+   // With operationId:
+   const updated = await client.put.updateproduct('123')({ name: 'Updated Product', price: 99.99 });
+   await client.delete.removeitem('123')();
    
-   // Resource endpoints (curried functions)
+   // Without operationId:
    const todo = await client.get.todo('123').get();
    const updatedTodo = await client.put.todo('123')({ title: 'Updated Todo', completed: true });
    await client.delete.todo('123')();
+   
+   // Collection creation
+   const newTodo = await client.post.todos({ title: 'New Todo', completed: false });
    
    // With query parameters
    const products = await client.get.products.queryParams({ category: 'electronics' });
@@ -156,8 +160,14 @@ src/
 ### Method Generation Logic
 
 **With OperationId** (Preferred):
-- `/api/persons` with `operationId: "getAllPersons"` → `client.get.getallpersons()`
-- `/api/person/{id}` with `operationId: "getPersonById"` → `client.get.getpersonbyid(id)`
+- **Collection endpoints**: 
+  - `GET /persons` with `operationId: "getAllPersons"` → `client.get.getallpersons(params)`
+  - `POST /products` with `operationId: "createProduct"` → `client.post.createproduct(body)`
+
+- **Resource endpoints (curried) - same pattern as without operationId!**:
+  - `GET /person/{id}` with `operationId: "getPersonById"` → `client.get.getpersonbyid(id)` (direct for GET)
+  - `PUT /product/{id}` with `operationId: "updateProduct"` → `client.put.updateproduct(id)(body)` 🎯
+  - `DELETE /item/{id}` with `operationId: "removeItem"` → `client.delete.removeitem(id)()` 🎯
 
 **Without OperationId** (Intelligent Fallback):
 - **Collection endpoints**: 
@@ -170,7 +180,7 @@ src/
   - `PUT /todos/{id}` → `client.put.todo(id)(body)` ✨
   - `DELETE /todos/{id}` → `client.delete.todo(id)()` ✨
 
-The curried function pattern makes resource updates very intuitive!
+**Key Point**: Resource endpoints with PUT/DELETE/PATCH use the **same curried function pattern** whether they have an operationId or not! This provides a consistent, intuitive API across all endpoints. 🎉
 
 ### Supported Authentication Types
 
@@ -189,8 +199,9 @@ The curried function pattern makes resource updates very intuitive!
 
 **Resource Endpoints (Path Parameters):**
 - ✅ GET resources: `client.get.todo(id).get()`
-- ✅ PUT resources: `client.put.todo(id)(body)` - Curried function pattern! 🎯
-- ✅ DELETE resources: `client.delete.todo(id)()` - Empty parameter
+- ✅ PUT resources: `client.put.todo(id)(body)` or `client.put.updateproduct(id)(body)` - Curried function pattern! 🎯
+- ✅ DELETE resources: `client.delete.todo(id)()` or `client.delete.removeitem(id)()` - Empty parameter
+- ✅ **Consistent API**: Same curried pattern whether you use operationId or not!
 - ✅ Full type safety with path parameters (`{userId}` vs `{id}`)
 
 **General:**

@@ -101,6 +101,7 @@
       },
       "put": {
         "summary": "Update a product",
+        "operationId": "updateProductYo",
         "parameters": [
           {
             "name": "id",

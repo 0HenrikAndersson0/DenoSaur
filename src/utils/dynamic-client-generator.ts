@@ -16,22 +16,34 @@ function extractUsedTypes(
 ): string[] {
   const usedTypes = new Set<string>();
 
-  // Extract types from all operations
+  // Extract types from all operations - only include actual type names, not inline types
   for (const pathInfo of pathInfos) {
     // Get request body type
     if (pathInfo.operation.requestBody) {
       const requestType = getRequestType(pathInfo.operation);
-      if (requestType && requestType !== "any") {
-        usedTypes.add(requestType);
+      // Only add if it's a valid type name (not inline type with {)
+      if (requestType && requestType !== "any" && !requestType.includes("{")) {
+        // Check if it's an array and extract the base type
+        const baseType = requestType.includes("[]") ? requestType.replace("[]", "") : requestType;
+        if (baseType && baseType !== "any") {
+          usedTypes.add(baseType);
+        }
       }
     }
 
     // Get response type
     const responseType = getResponseType(pathInfo.operation);
-    if (
-      responseType && responseType !== "any" && !responseType.includes("[]")
-    ) {
-      usedTypes.add(responseType);
+    // Only add if it's a valid type name (not inline type with {)
+    if (responseType && responseType !== "any" && !responseType.includes("{")) {
+      // Check if it's an array and extract the base type
+      if (responseType.includes("[]")) {
+        const baseType = responseType.replace("[]", "");
+        if (baseType && baseType !== "any") {
+          usedTypes.add(baseType);
+        }
+      } else {
+        usedTypes.add(responseType);
+      }
     }
   }
 
@@ -42,7 +54,11 @@ function extractUsedTypes(
     }
   }
 
-  return Array.from(usedTypes).sort();
+  // Filter out TypeScript built-in types that shouldn't be imported
+  const builtInTypes = ['string', 'number', 'boolean', 'any', 'unknown', 'never', 'void'];
+  const filteredTypes = Array.from(usedTypes).filter(type => !builtInTypes.includes(type));
+  
+  return filteredTypes.sort();
 }
 
 export function generateClientFromOpenAPI(apiData: OpenAPIData): string {
@@ -70,7 +86,7 @@ export function generateClientFromOpenAPI(apiData: OpenAPIData): string {
 // Generated on: ${new Date().toISOString()}
 
 // Import generated types
-${usedTypes?.map((type) => `import { ${type} } from "./types.ts";`).join("\n")}
+${usedTypes.length > 0 ? usedTypes.map((type) => `import { ${type} } from "./types.ts";`).join("\n") : ""}
 
 type Servers = ${
     apiData.servers?.map((s, i) => {
@@ -241,8 +257,10 @@ function generateCollectionMethods(
         code += `       * @requires ${securityRequirements.join(', ')}\n`;
       }
       code += `       */\n`;
+      const { type: queryParamsType, hasRequired: hasRequiredParams } = getQueryParamsType(pathInfo.operation);
+      const defaultValue = hasRequiredParams ? "" : " = {}";
       code +=
-        `      ${methodName}: async (params: QueryParams = {}): Promise<ApiResponse<${responseType}>> => {\n`;
+        `      ${methodName}: async (params: ${queryParamsType}${defaultValue}): Promise<ApiResponse<${responseType}>> => {\n`;
     } else {
       code += `/**\n`;
       code += ` * ${pathInfo.operation.summary || resourceName}\n`;
@@ -253,8 +271,10 @@ function generateCollectionMethods(
         code += ` * @requires ${securityRequirements.join(', ')}\n`;
       }
       code += ` */\n`;
+      const { type: queryParamsType, hasRequired: hasRequiredParams } = getQueryParamsType(pathInfo.operation);
+      const defaultValue = hasRequiredParams ? "" : " = {}";
       code +=
-        `async (params: QueryParams = {}): Promise<ApiResponse<${responseType}>> => {\n`;
+        `async (params: ${queryParamsType}${defaultValue}): Promise<ApiResponse<${responseType}>> => {\n`;
       code += `      `;
     }
     code +=
@@ -455,6 +475,35 @@ function generateResourceMethods(
   return `    ${singularName}: () => {},\n`;
 }
 
+function getQueryParamsType(operation: any): { type: string, hasRequired: boolean } {
+  if (!operation.parameters || !Array.isArray(operation.parameters)) {
+    return { type: "QueryParams", hasRequired: false };
+  }
+
+  const queryParams = operation.parameters.filter((p: any) => p.in === "query");
+  
+  if (queryParams.length === 0) {
+    return { type: "QueryParams", hasRequired: false };
+  }
+
+  const properties: string[] = [];
+  let hasRequired = false;
+  
+  for (const param of queryParams) {
+    const isRequired = param.required === true;
+    if (isRequired) hasRequired = true;
+    const optional = isRequired ? "" : "?";
+    const paramType = convertSchemaToType(param.schema || { type: "string" });
+    const paramName = param.name;
+    // Escape property names that aren't valid identifiers
+    const escapedParamName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(paramName) ? paramName : `"${paramName}"`;
+    properties.push(`${escapedParamName}${optional}: ${paramType}`);
+  }
+
+  const type = properties.length > 0 ? `{ ${properties.join("; ")} }` : "QueryParams";
+  return { type, hasRequired };
+}
+
 function getResponseType(operation: any): string {
   const response = operation.responses?.["200"] ||
     operation.responses?.["201"] || operation.responses?.["204"];
@@ -463,28 +512,88 @@ function getResponseType(operation: any): string {
   const schema = response.content?.["application/json"]?.schema;
   if (!schema) return "any";
 
-  if (schema.$ref) {
-    return schema.$ref.split("/").pop() || "any";
-  }
-
-  if (schema.type === "array") {
-    const itemType = schema.items?.$ref
-      ? schema.items.$ref.split("/").pop()
-      : "any";
-    return `${itemType}[]`;
-  }
-
-  return "any";
+  return convertSchemaToType(schema);
 }
 
 function getRequestType(operation: any): string {
-  const schema = operation.requestBody?.content?.["application/json"]?.schema;
+  const schema = operation.requestBody?.content?.["application/json"]?.schema ||
+                  operation.requestBody?.content?.["application/x-www-form-urlencoded"]?.schema;
   if (!schema) return "any";
 
-  if (schema.$ref) {
-    return schema.$ref.split("/").pop() || "any";
+  return convertSchemaToType(schema);
+}
+
+function convertSchemaToType(schema: any): string {
+  if (!schema || typeof schema !== "object") {
+    return "any";
   }
 
+  if (schema.$ref) {
+    // Extract type name from reference like "#/components/schemas/Todo"
+    const refName = schema.$ref.split("/").pop() || "unknown";
+    return refName;
+  }
+  
+  // Handle anyOf, oneOf, allOf
+  if (schema.anyOf && Array.isArray(schema.anyOf)) {
+    const types = schema.anyOf.map((s: any) => convertSchemaToType(s));
+    return types.join(" | ");
+  }
+  
+  if (schema.oneOf && Array.isArray(schema.oneOf)) {
+    const types = schema.oneOf.map((s: any) => convertSchemaToType(s));
+    return types.join(" | ");
+  }
+  
+  if (schema.allOf && Array.isArray(schema.allOf)) {
+    const types = schema.allOf.map((s: any) => convertSchemaToType(s));
+    return types.join(" & ");
+  }
+  
+  if (schema.type === "string") {
+    return "string";
+  }
+  
+  if (schema.type === "number" || schema.type === "integer") {
+    return "number";
+  }
+  
+  if (schema.type === "boolean") {
+    return "boolean";
+  }
+  
+  if (schema.type === "array") {
+    if (schema.items) {
+      const itemType = convertSchemaToType(schema.items);
+      return `${itemType}[]`;
+    }
+    return "any[]";
+  }
+  
+  if (schema.type === "object") {
+    // If it has properties, generate an inline type
+    if (schema.properties) {
+      const properties: string[] = [];
+      for (const [propName, propSchema] of Object.entries(schema.properties)) {
+        const isRequired = schema.required?.includes(propName) ?? false;
+        const optional = isRequired ? "" : "?";
+        const propType = convertSchemaToType(propSchema as any);
+        // Escape property names that aren't valid identifiers
+        const escapedPropName = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(propName) ? propName : `"${propName}"`;
+        properties.push(`${escapedPropName}${optional}: ${propType}`);
+      }
+      return `{ ${properties.join("; ")} }`;
+    }
+    return "Record<string, any>";
+  }
+  
+  if (schema.enum) {
+    const enumValues = schema.enum
+      .map((value: any) => typeof value === "string" ? `"${value}"` : String(value))
+      .join(" | ");
+    return enumValues;
+  }
+  
   return "any";
 }
 
@@ -551,6 +660,11 @@ function generateDirectMethod(pathInfo: PathInfo, apiData: OpenAPIData): string 
   const responseType = getResponseType(pathInfo.operation);
   const securityRequirements = getSecurityRequirements(pathInfo.operation, apiData);
   
+  // Determine parameters based on path and operation
+  const pathParams = pathInfo.pathParams;
+  const hasRequestBody = !!pathInfo.operation.requestBody;
+  const hasPathParams = pathParams.length > 0;
+  
   let code = `    /**\n`;
   code += `     * ${pathInfo.operation.summary || methodName}\n`;
   if (pathInfo.operation.description) {
@@ -562,10 +676,66 @@ function generateDirectMethod(pathInfo: PathInfo, apiData: OpenAPIData): string 
   code += `     */\n`;
   code += `    ${methodName}: `;
   
-  // Determine parameters based on path and operation
-  const pathParams = pathInfo.pathParams;
-  const hasRequestBody = !!pathInfo.operation.requestBody;
+  // For resource endpoints (with path params) with POST/PUT/DELETE, use curried function
+  if (hasPathParams && (pathInfo.method === "post" || pathInfo.method === "put" || pathInfo.method === "delete" || pathInfo.method === "patch")) {
+    const paramName = pathParams[0];
+    
+    // First function: takes the path parameter
+    code += `(${paramName}: string) => `;
+    
+    if (hasRequestBody) {
+      const requestType = getRequestType(pathInfo.operation);
+      // Second function: takes the body
+      code += `async (body: ${requestType}): Promise<ApiResponse<${responseType}>> => {\n`;
+    } else {
+      // Second function: no parameters (for DELETE)
+      code += `async (): Promise<ApiResponse<${responseType}>> => {\n`;
+    }
+    
+    // Build URL with path parameters
+    let urlTemplate = pathInfo.path;
+    pathParams.forEach(param => {
+      urlTemplate = urlTemplate.replace(`{${param}}`, `\${${param}}`);
+    });
+    
+    code += `      const response = await fetch(\`\${this.config.baseUrl}${urlTemplate}\`, {\n`;
+    code += `        method: '${pathInfo.method.toUpperCase()}',\n`;
+    
+    if (hasRequestBody) {
+      code += `        headers: {\n`;
+      code += `          'Content-Type': 'application/json',\n`;
+      code += `          ...this.config.headers,\n`;
+      code += `        },\n`;
+      code += `        body: JSON.stringify(body),\n`;
+    } else {
+      code += `        headers: this.config.headers,\n`;
+    }
+    
+    code += `      });\n`;
+    code += `      \n`;
+    
+    // Handle response
+    if (pathInfo.method === "delete" && responseType.includes("void")) {
+      code += `      return {\n`;
+      code += `        data: undefined,\n`;
+      code += `        status: response.status,\n`;
+      code += `        statusText: response.statusText,\n`;
+      code += `      };\n`;
+    } else {
+      code += `      const data = await response.json();\n`;
+      code += `      return {\n`;
+      code += `        data,\n`;
+      code += `        status: response.status,\n`;
+      code += `        statusText: response.statusText,\n`;
+      code += `      };\n`;
+    }
+    
+    code += `    },\n`;
+    
+    return code;
+  }
   
+  // For collection endpoints or GET requests, use the original non-curried approach
   // Build parameter list
   const params: string[] = [];
   
@@ -576,7 +746,9 @@ function generateDirectMethod(pathInfo: PathInfo, apiData: OpenAPIData): string 
   
   // Add query parameters for GET requests
   if (pathInfo.method === "get") {
-    params.push("params: QueryParams = {}");
+    const { type: queryParamsType, hasRequired: hasRequiredParams } = getQueryParamsType(pathInfo.operation);
+    const defaultValue = hasRequiredParams ? "" : " = {}";
+    params.push(`params: ${queryParamsType}${defaultValue}`);
   }
   
   // Add request body for POST/PUT/PATCH requests
@@ -627,7 +799,7 @@ function generateDirectMethod(pathInfo: PathInfo, apiData: OpenAPIData): string 
   code += `      \n`;
   
   // Handle response
-  if (pathInfo.method === "delete" && !responseType.includes("void")) {
+  if (pathInfo.method === "delete" && responseType.includes("void")) {
     code += `      return {\n`;
     code += `        data: undefined,\n`;
     code += `        status: response.status,\n`;

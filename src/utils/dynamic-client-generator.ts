@@ -70,10 +70,10 @@ export function generateClientFromOpenAPI(apiData: OpenAPIData): string {
 // Generated on: ${new Date().toISOString()}
 
 // Import generated types
-${usedTypes.map((type) => `import { ${type} } from "./types.ts";`).join("\n")}
+${usedTypes?.map((type) => `import { ${type} } from "./types.ts";`).join("\n")}
 
 type Servers = ${
-    apiData.servers.map((s, i) => {
+    apiData.servers?.map((s, i) => {
       return (i > 0 ? "|" : "") + "'" + s.url + "'";
     })
   };
@@ -213,85 +213,129 @@ function generateCollectionMethods(
   pathInfo: PathInfo,
   apiData: OpenAPIData,
 ): string {
-  let code = `    ${resourceName}: {\n`;
+  // Check if there are any query parameters defined
+  const hasQueryParams = pathInfo.operation.parameters?.some(
+    (p: any) => p.in === "query"
+  ) || false;
+  
+  // For GET requests without query params, use direct method
+  // For POST/PUT/PATCH with requestBody but no query params, use direct method
+  // Only use nested structure if there are query params
+  const useNestedStructure = hasQueryParams;
+  
+  let code = useNestedStructure ? `    ${resourceName}: {\n` : `    ${resourceName}: `;
 
-  // For GET requests, always generate queryParams method
+  // For GET requests
   if (pathInfo.method === "get") {
     const responseType = getResponseType(pathInfo.operation);
-    const methodName = getMethodName(pathInfo.operation, "queryParams");
+    const methodName = useNestedStructure ? getMethodName(pathInfo.operation, "queryParams") : "";
     const securityRequirements = getSecurityRequirements(pathInfo.operation, apiData);
     
-    code += `      /**\n`;
-    code += `       * ${pathInfo.operation.summary || methodName}\n`;
-    if (pathInfo.operation.description) {
-      code += `       * ${pathInfo.operation.description}\n`;
+    if (useNestedStructure) {
+      code += `      /**\n`;
+      code += `       * ${pathInfo.operation.summary || methodName}\n`;
+      if (pathInfo.operation.description) {
+        code += `       * ${pathInfo.operation.description}\n`;
+      }
+      if (securityRequirements.length > 0) {
+        code += `       * @requires ${securityRequirements.join(', ')}\n`;
+      }
+      code += `       */\n`;
+      code +=
+        `      ${methodName}: async (params: QueryParams = {}): Promise<ApiResponse<${responseType}>> => {\n`;
+    } else {
+      code += `/**\n`;
+      code += ` * ${pathInfo.operation.summary || resourceName}\n`;
+      if (pathInfo.operation.description) {
+        code += ` * ${pathInfo.operation.description}\n`;
+      }
+      if (securityRequirements.length > 0) {
+        code += ` * @requires ${securityRequirements.join(', ')}\n`;
+      }
+      code += ` */\n`;
+      code +=
+        `async (params: QueryParams = {}): Promise<ApiResponse<${responseType}>> => {\n`;
+      code += `      `;
     }
-    if (securityRequirements.length > 0) {
-      code += `       * @requires ${securityRequirements.join(', ')}\n`;
-    }
-    code += `       */\n`;
     code +=
-      `      ${methodName}: async (params: QueryParams = {}): Promise<ApiResponse<${responseType}>> => {\n`;
-    code +=
-      `        const url = new URL(\`\${this.config.baseUrl}${pathInfo.path}\`);\n`;
-    code += `        Object.entries(params).forEach(([key, value]) => {\n`;
-    code += `          if (value !== undefined) {\n`;
-    code += `            url.searchParams.append(key, String(value));\n`;
-    code += `          }\n`;
-    code += `        });\n`;
+      `const url = new URL(\`\${this.config.baseUrl}${pathInfo.path}\`);\n`;
+    code += `${useNestedStructure ? '' : '      '}Object.entries(params).forEach(([key, value]) => {\n`;
+    code += `${useNestedStructure ? '' : '      '}  if (value !== undefined) {\n`;
+    code += `${useNestedStructure ? '' : '      '}    url.searchParams.append(key, String(value));\n`;
+    code += `${useNestedStructure ? '' : '      '}  }\n`;
+    code += `${useNestedStructure ? '' : '      '}});\n`;
     code += `        \n`;
-    code += `        const response = await fetch(url.toString(), {\n`;
-    code += `          method: '${pathInfo.method.toUpperCase()}',\n`;
-    code += `          headers: this.config.headers,\n`;
-    code += `        });\n`;
+    code += `${useNestedStructure ? '' : '      '}const response = await fetch(url.toString(), {\n`;
+    code += `${useNestedStructure ? '' : '      '}  method: '${pathInfo.method.toUpperCase()}',\n`;
+    code += `${useNestedStructure ? '' : '      '}  headers: this.config.headers,\n`;
+    code += `${useNestedStructure ? '' : '      '}});\n`;
     code += `        \n`;
-    code += `        const data = await response.json();\n`;
-    code += `        return {\n`;
-    code += `          data,\n`;
-    code += `          status: response.status,\n`;
-    code += `          statusText: response.statusText,\n`;
-    code += `        };\n`;
-    code += `      },\n`;
+    code += `${useNestedStructure ? '' : '      '}const data = await response.json();\n`;
+    code += `${useNestedStructure ? '' : '      '}return {\n`;
+    code += `${useNestedStructure ? '' : '      '}  data,\n`;
+    code += `${useNestedStructure ? '' : '      '}  status: response.status,\n`;
+    code += `${useNestedStructure ? '' : '      '}  statusText: response.statusText,\n`;
+    code += `${useNestedStructure ? '' : '      '}};\n`;
+    code += useNestedStructure ? `      },\n` : `    },\n`;
   }
 
   // Generate data method for POST/PUT/PATCH requests
   if (pathInfo.operation.requestBody) {
     const requestType = getRequestType(pathInfo.operation);
     const responseType = getResponseType(pathInfo.operation);
-    const methodName = getMethodName(pathInfo.operation, "data");
+    const methodName = useNestedStructure ? getMethodName(pathInfo.operation, "data") : "";
     const securityRequirements = getSecurityRequirements(pathInfo.operation, apiData);
     
-    code += `      /**\n`;
-    code += `       * ${pathInfo.operation.summary || methodName}\n`;
-    if (pathInfo.operation.description) {
-      code += `       * ${pathInfo.operation.description}\n`;
+    if (useNestedStructure) {
+      code += `      /**\n`;
+      code += `       * ${pathInfo.operation.summary || methodName}\n`;
+      if (pathInfo.operation.description) {
+        code += `       * ${pathInfo.operation.description}\n`;
+      }
+      if (securityRequirements.length > 0) {
+        code += `       * @requires ${securityRequirements.join(', ')}\n`;
+      }
+      code += `       */\n`;
+      code +=
+        `      ${methodName}: async (body: ${requestType}): Promise<ApiResponse<${responseType}>> => {\n`;
+    } else {
+      code += `/**\n`;
+      code += ` * ${pathInfo.operation.summary || resourceName}\n`;
+      if (pathInfo.operation.description) {
+        code += ` * ${pathInfo.operation.description}\n`;
+      }
+      if (securityRequirements.length > 0) {
+        code += ` * @requires ${securityRequirements.join(', ')}\n`;
+      }
+      code += ` */\n`;
+      code +=
+        `async (body: ${requestType}): Promise<ApiResponse<${responseType}>> => {\n`;
+      code += `      `;
     }
-    if (securityRequirements.length > 0) {
-      code += `       * @requires ${securityRequirements.join(', ')}\n`;
-    }
-    code += `       */\n`;
     code +=
-      `      ${methodName}: async (body: ${requestType}): Promise<ApiResponse<${responseType}>> => {\n`;
-    code +=
-      `        const response = await fetch(\`\${this.config.baseUrl}${pathInfo.path}\`, {\n`;
-    code += `          method: '${pathInfo.method.toUpperCase()}',\n`;
-    code += `          headers: {\n`;
-    code += `            'Content-Type': 'application/json',\n`;
-    code += `            ...this.config.headers,\n`;
-    code += `          },\n`;
-    code += `          body: JSON.stringify(body),\n`;
-    code += `        });\n`;
+      `const response = await fetch(\`\${this.config.baseUrl}${pathInfo.path}\`, {\n`;
+    code += `${useNestedStructure ? '' : '      '}  method: '${pathInfo.method.toUpperCase()}',\n`;
+    code += `${useNestedStructure ? '' : '      '}  headers: {\n`;
+    code += `${useNestedStructure ? '' : '      '}    'Content-Type': 'application/json',\n`;
+    code += `${useNestedStructure ? '' : '      '}    ...this.config.headers,\n`;
+    code += `${useNestedStructure ? '' : '      '}  },\n`;
+    code += `${useNestedStructure ? '' : '      '}  body: JSON.stringify(body),\n`;
+    code += `${useNestedStructure ? '' : '      '}});\n`;
     code += `        \n`;
-    code += `        const data = await response.json();\n`;
-    code += `        return {\n`;
-    code += `          data,\n`;
-    code += `          status: response.status,\n`;
-    code += `          statusText: response.statusText,\n`;
-    code += `        };\n`;
-    code += `      },\n`;
+    code += `${useNestedStructure ? '' : '      '}const data = await response.json();\n`;
+    code += `${useNestedStructure ? '' : '      '}return {\n`;
+    code += `${useNestedStructure ? '' : '      '}  data,\n`;
+    code += `${useNestedStructure ? '' : '      '}  status: response.status,\n`;
+    code += `${useNestedStructure ? '' : '      '}  statusText: response.statusText,\n`;
+    code += `${useNestedStructure ? '' : '      '}};\n`;
+    code += useNestedStructure ? `      },\n` : `    },\n`;
   }
 
-  code += `    },\n`;
+  // Close the structure properly based on whether we used nested or direct structure
+  // Only add closing if we're using nested structure and haven't closed it yet
+  if (useNestedStructure) {
+    code += `    },\n`;
+  }
   return code;
 }
 
@@ -305,14 +349,14 @@ function generateResourceMethods(
     : resourceName;
   const paramName = pathInfo.pathParams[0] || "id";
 
-  let code = `    ${singularName}: (${paramName}: string) => ({\n`;
+  const responseType = getResponseType(pathInfo.operation);
+  const securityRequirements = getSecurityRequirements(pathInfo.operation, apiData);
 
-  // Generate get method for individual resources
+  // If this is a GET request, return the old structure with .get() method
   if (pathInfo.method === "get") {
-    const responseType = getResponseType(pathInfo.operation);
     const methodName = getMethodName(pathInfo.operation, "get");
-    const securityRequirements = getSecurityRequirements(pathInfo.operation, apiData);
     
+    let code = `    ${singularName}: (${paramName}: string) => ({\n`;
     code += `      /**\n`;
     code += `       * ${pathInfo.operation.summary || methodName}\n`;
     if (pathInfo.operation.description) {
@@ -337,78 +381,78 @@ function generateResourceMethods(
     code += `          statusText: response.statusText,\n`;
     code += `        };\n`;
     code += `      },\n`;
+    code += `    }),\n`;
+    return code;
   }
 
-  // Generate data method for POST/PUT/PATCH requests
+  // For POST/PUT/PATCH requests with requestBody, make it return a function that takes the body
   if (pathInfo.operation.requestBody) {
     const requestType = getRequestType(pathInfo.operation);
-    const responseType = getResponseType(pathInfo.operation);
-    const methodName = getMethodName(pathInfo.operation, "data");
-    const securityRequirements = getSecurityRequirements(pathInfo.operation, apiData);
     
-    code += `      /**\n`;
-    code += `       * ${pathInfo.operation.summary || methodName}\n`;
+    let code = `    ${singularName}: (${paramName}: string) => `;
+    code += `/**\n`;
+    code += ` * ${pathInfo.operation.summary || resourceName}\n`;
     if (pathInfo.operation.description) {
-      code += `       * ${pathInfo.operation.description}\n`;
+      code += ` * ${pathInfo.operation.description}\n`;
     }
     if (securityRequirements.length > 0) {
-      code += `       * @requires ${securityRequirements.join(', ')}\n`;
+      code += ` * @requires ${securityRequirements.join(', ')}\n`;
     }
-    code += `       */\n`;
+    code += ` */\n`;
     code +=
-      `      ${methodName}: async (body: ${requestType}): Promise<ApiResponse<${responseType}>> => {\n`;
-    code += `        const response = await fetch(\`\${this.config.baseUrl}${
+      `async (body: ${requestType}): Promise<ApiResponse<${responseType}>> => {\n`;
+    code += `      const response = await fetch(\`\${this.config.baseUrl}${
       pathInfo.path.replace("{" + paramName + "}", "${" + paramName + "}")
     }\`, {\n`;
-    code += `          method: '${pathInfo.method.toUpperCase()}',\n`;
-    code += `          headers: {\n`;
-    code += `            'Content-Type': 'application/json',\n`;
-    code += `            ...this.config.headers,\n`;
-    code += `          },\n`;
-    code += `          body: JSON.stringify(body),\n`;
-    code += `        });\n`;
-    code += `        \n`;
-    code += `        const data = await response.json();\n`;
-    code += `        return {\n`;
-    code += `          data,\n`;
-    code += `          status: response.status,\n`;
-    code += `          statusText: response.statusText,\n`;
-    code += `        };\n`;
-    code += `      },\n`;
+    code += `        method: '${pathInfo.method.toUpperCase()}',\n`;
+    code += `        headers: {\n`;
+    code += `          'Content-Type': 'application/json',\n`;
+    code += `          ...this.config.headers,\n`;
+    code += `        },\n`;
+    code += `        body: JSON.stringify(body),\n`;
+    code += `      });\n`;
+    code += `      \n`;
+    code += `      const data = await response.json();\n`;
+    code += `      return {\n`;
+    code += `        data,\n`;
+    code += `        status: response.status,\n`;
+    code += `        statusText: response.statusText,\n`;
+    code += `      };\n`;
+    code += `    },\n`;
+    return code;
   }
 
   // Generate delete method
   if (pathInfo.method === "delete") {
-    const methodName = getMethodName(pathInfo.operation, "delete");
-    const securityRequirements = getSecurityRequirements(pathInfo.operation, apiData);
-    
-    code += `      /**\n`;
-    code += `       * ${pathInfo.operation.summary || methodName}\n`;
+    let code = `    ${singularName}: (${paramName}: string) => `;
+    code += `/**\n`;
+    code += ` * ${pathInfo.operation.summary || resourceName}\n`;
     if (pathInfo.operation.description) {
-      code += `       * ${pathInfo.operation.description}\n`;
+      code += ` * ${pathInfo.operation.description}\n`;
     }
     if (securityRequirements.length > 0) {
-      code += `       * @requires ${securityRequirements.join(', ')}\n`;
+      code += ` * @requires ${securityRequirements.join(', ')}\n`;
     }
-    code += `       */\n`;
-    code += `      ${methodName}: async (): Promise<ApiResponse<void>> => {\n`;
-    code += `        const response = await fetch(\`\${this.config.baseUrl}${
+    code += ` */\n`;
+    code += `async (): Promise<ApiResponse<void>> => {\n`;
+    code += `      const response = await fetch(\`\${this.config.baseUrl}${
       pathInfo.path.replace("{" + paramName + "}", "${" + paramName + "}")
     }\`, {\n`;
-    code += `          method: '${pathInfo.method.toUpperCase()}',\n`;
-    code += `          headers: this.config.headers,\n`;
-    code += `        });\n`;
-    code += `        \n`;
-    code += `        return {\n`;
-    code += `          data: undefined,\n`;
-    code += `          status: response.status,\n`;
-    code += `          statusText: response.statusText,\n`;
-    code += `        };\n`;
-    code += `      },\n`;
+    code += `        method: '${pathInfo.method.toUpperCase()}',\n`;
+    code += `        headers: this.config.headers,\n`;
+    code += `      });\n`;
+    code += `      \n`;
+    code += `      return {\n`;
+    code += `        data: undefined,\n`;
+    code += `        status: response.status,\n`;
+    code += `        statusText: response.statusText,\n`;
+    code += `      };\n`;
+    code += `    },\n`;
+    return code;
   }
 
-  code += `    }),\n`;
-  return code;
+  // Fallback: should not reach here
+  return `    ${singularName}: () => {},\n`;
 }
 
 function getResponseType(operation: any): string {

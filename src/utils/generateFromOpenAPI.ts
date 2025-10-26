@@ -85,13 +85,16 @@ export async function generateFromOpenAPI(
   // Generate types if requested
   if (generateTypes) {
     const typesContent = createTypesFromApiData(apiData);
-    const typesPath = `${outputDir}/${typesFilename}`;
+    if(typesContent !== "") {
+      const typesPath = `${outputDir}/${typesFilename}`;
     
-    await Deno.writeTextFile(typesPath, typesContent);
-    result.typesPath = typesPath;
-    result.typesContent = typesContent;
-    
-    console.log(`✅ TypeScript types generated: ${typesPath}`);
+      await Deno.writeTextFile(typesPath, typesContent);
+      result.typesPath = typesPath;
+      result.typesContent = typesContent;
+      
+      console.log(`✅ TypeScript types generated: ${typesPath}`);
+    }
+    else console.log(`❗No TypeScript types generated`)
   }
 
   // Generate client if requested

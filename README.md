@@ -8,7 +8,8 @@ A powerful Deno-based tool that generates type-safe API clients from OpenAPI spe
 - **🔒 Security Documentation**: Automatically analyzes and documents authentication requirements for each endpoint
 - **📝 Comprehensive JSDoc**: Generates detailed documentation with summaries, descriptions, and security requirements
 - **🛡️ Type Safety**: Generates TypeScript types from OpenAPI schemas with full type checking
-- **🔄 Flexible Structure**: Supports both direct methods (`client.get.getpersonbyid(id)`) and resource-based methods (`client.get.person(id)`)
+- **🔄 Flexible Structure**: Smart method generation based on endpoint type - direct methods, curried functions, or nested structures
+- **🎣 Curried Functions**: Resource endpoints use curried functions for clean APIs like `client.put.todo(id)(body)`
 - **📦 Auto Imports**: Automatically imports all required types
 - **🌐 Full HTTP Support**: Handles GET, POST, PUT, DELETE, PATCH methods
 - **🔍 Query Parameters**: Built-in query parameter handling with proper typing
@@ -29,14 +30,20 @@ client.get.healthcheck()
 ```
 
 ### Without OperationId (Fallback)
-When no `operationId` is present, falls back to resource-based structure:
+When no `operationId` is present, falls back to intelligent resource-based structure:
 
 ```typescript
-// Resource-based methods (fallback)
-client.get.persons.queryParams({ category: 'electronics' })
-client.get.person('123').get()
-client.put.person('123').data({ name: 'Updated Widget' })
-client.delete.person('123').delete()
+// Collection endpoints
+client.get.todos()                              // GET /todos
+client.post.todos({ title: "New todo" })        // POST /todos
+
+// Resource endpoints (curried functions)
+client.get.todo("123").get()                    // GET /todos/{id}
+client.put.todo("123")({ title: "Updated" })    // PUT /todos/{id}
+client.delete.todo("123")()                     // DELETE /todos/{id}
+
+// With query parameters
+client.get.products.queryParams({ category: 'electronics' })
 ```
 
 ### Security Documentation
@@ -53,14 +60,35 @@ getpersonbyid: async (id: string, params: QueryParams = {}): Promise<ApiResponse
 }
 ```
 
-## Usage
+## Getting Started
 
-1. **Generate types and client**:
-   ```bash
-   deno task generate
-   ```
+### 1. Generate the Client
 
-2. **Use the generated client**:
+
+#### Option A: Specifying a Custom OpenAPI File
+```bash
+deno run --allow-read --allow-write src/main.ts path/to/your/api.json
+```
+
+#### Option B: Using the Published Package
+```typescript
+import { generateFromOpenAPI } from "jsr:@upnorth/denosaur";
+
+const result = await generateFromOpenAPI("api-spec.json", {
+  outputDir: "generated",
+  typesFilename: "api-types.ts",
+  clientFilename: "api-client.ts"
+});
+
+console.log("Generated:", result.typesPath, result.clientPath);
+```
+
+#### Option C: CLI Direct Invocation
+```bash
+deno run --allow-read --allow-write src/main.ts spec-files/api-data.json
+```
+
+### 2. Use the Generated Client
    ```typescript
    import { createClient } from "./out/client.ts";
    
@@ -80,12 +108,17 @@ getpersonbyid: async (id: string, params: QueryParams = {}): Promise<ApiResponse
      age: 30
    });
    
-   // Fallback methods (without operationId)
+   // Collection endpoints (without operationId)
+   const todos = await client.get.todos();
+   const newTodo = await client.post.todos({ title: 'New Todo', completed: false });
+   
+   // Resource endpoints (curried functions)
+   const todo = await client.get.todo('123').get();
+   const updatedTodo = await client.put.todo('123')({ title: 'Updated Todo', completed: true });
+   await client.delete.todo('123')();
+   
+   // With query parameters
    const products = await client.get.products.queryParams({ category: 'electronics' });
-   const newProduct = await client.post.products.data({
-     name: 'New Product',
-     price: 29.99
-   });
    ```
 
 ## Available Tasks
@@ -126,9 +159,18 @@ src/
 - `/api/persons` with `operationId: "getAllPersons"` → `client.get.getallpersons()`
 - `/api/person/{id}` with `operationId: "getPersonById"` → `client.get.getpersonbyid(id)`
 
-**Without OperationId** (Fallback):
-- `/api/products` → `client.get.products.queryParams()`
-- `/api/products/{id}` → `client.get.product(id).get()`
+**Without OperationId** (Intelligent Fallback):
+- **Collection endpoints**: 
+  - `GET /todos` (no query params) → `client.get.todos()`
+  - `POST /todos` → `client.post.todos(body)`
+  - `GET /products?category=...` (with query params) → `client.get.products.queryParams()`
+
+- **Resource endpoints (curried)**:
+  - `GET /todos/{id}` → `client.get.todo(id).get()`
+  - `PUT /todos/{id}` → `client.put.todo(id)(body)` ✨
+  - `DELETE /todos/{id}` → `client.delete.todo(id)()` ✨
+
+The curried function pattern makes resource updates very intuitive!
 
 ### Supported Authentication Types
 
@@ -138,13 +180,25 @@ src/
 - **OAuth2**: `@requires OAuth2 (read, write)`
 - **OpenID Connect**: `@requires OpenID Connect`
 
-The generator handles:
-- ✅ Collection and resource endpoints with intelligent naming
-- ✅ Path parameters with proper typing (`{userId}` vs `{id}`)
+### Key Features of Generated Client
+
+**Collection Endpoints:**
+- ✅ Direct methods when no query parameters: `client.get.todos()`
+- ✅ Nested structure with query params: `client.get.products.queryParams()`
+- ✅ POST/PUT directly accept body: `client.post.todos(body)`
+
+**Resource Endpoints (Path Parameters):**
+- ✅ GET resources: `client.get.todo(id).get()`
+- ✅ PUT resources: `client.put.todo(id)(body)` - Curried function pattern! 🎯
+- ✅ DELETE resources: `client.delete.todo(id)()` - Empty parameter
+- ✅ Full type safety with path parameters (`{userId}` vs `{id}`)
+
+**General:**
 - ✅ All HTTP methods (GET, POST, PUT, DELETE, PATCH)
-- ✅ Query parameters and request bodies with full type safety
-- ✅ Security documentation for all authentication schemes
-- ✅ Comprehensive JSDoc with operation summaries and descriptions
+- ✅ Full type safety for requests and responses
+- ✅ Comprehensive JSDoc with operation summaries and security requirements
+- ✅ Automatic query parameter handling
+- ✅ Proper JSON serialization for request bodies
 
 ## Best Practices
 
@@ -188,3 +242,7 @@ The client automatically includes comprehensive documentation:
  */
 getpersonbyid: async (id: string, params: QueryParams = {}): Promise<ApiResponse<Person>>
 ```
+
+
+
+

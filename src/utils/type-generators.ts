@@ -3,6 +3,9 @@ import { OpenAPISchema, OpenAPIData } from "../types/interfaces.ts";
 
 export const createTypesFromApiData = (apiData: OpenAPIData): string => {
     const schemas = apiData.components.schemas;
+    if(schemas == undefined) {
+      return "";
+    }
     let typesContent = `// Auto-generated TypeScript types from OpenAPI schema
   // Generated on: ${new Date().toISOString()}
   

@@ -1,4 +1,15 @@
-[![Deno Tests](https://github.com/0HenrikAndersson0/DenoSaur/actions/workflows/deno.yml/badge.svg)](https://github.com/0HenrikAndersson0/DenoSaur/actions/workflows/deno.yml)
+<p align="center">
+  <a href="https://github.com/0HenrikAndersson0/DenoSaur/actions/workflows/deno.yml">
+    <img src="https://github.com/0HenrikAndersson0/DenoSaur/actions/workflows/deno.yml/badge.svg" alt="Tests" />
+  </a>
+  <img src="https://img.shields.io/badge/Deno-2.x-blue?logo=deno" alt="Deno" />
+  <img src="https://img.shields.io/badge/TypeScript-5.x-blue?logo=typescript" alt="TypeScript" />
+  <a href="LICENSE">
+    <img src="https://img.shields.io/github/license/0HenrikAndersson0/DenoSaur" alt="License" />
+  </a>
+  <img src="https://img.shields.io/github/last-commit/0HenrikAndersson0/DenoSaur" alt="Last Commit" />
+</p>
+
 
 
 # 🦖 DenoSaur - Dynamic OpenAPI Client Generator
